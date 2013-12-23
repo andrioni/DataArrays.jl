@@ -252,7 +252,7 @@ function PooledDataArray{S,R,N}(x::PooledDataArray{S,R,N},
 end
 
 myunique(x::AbstractVector) = x[sort(unique(findat(x, x)))]  # gets the ordering right
-myunique(x::AbstractDataVector) = myunique(removeNA(x))   # gets the ordering right; removes NAs
+myunique(x::AbstractDataVector) = myunique(dropna(x))   # gets the ordering right; removes NAs
 
 function set_levels{T,R}(x::PooledDataArray{T,R}, newpool::AbstractVector)
     pool = myunique(newpool)
@@ -367,7 +367,7 @@ function Base.getindex(pda::PooledDataArray, inds::AbstractDataVector{Bool})
     return PooledDataArray(RefArray(pda.refs[inds]), copy(pda.pool))
 end
 function Base.getindex(pda::PooledDataArray, inds::AbstractDataVector)
-    inds = removeNA(inds)
+    inds = dropna(inds)
     return PooledDataArray(RefArray(pda.refs[inds]), copy(pda.pool))
 end
 function Base.getindex(pda::PooledDataArray, inds::Union(Vector, BitVector, Ranges))
@@ -388,7 +388,7 @@ function Base.getindex(pda::PooledDataArray, i::Real, col_inds::AbstractDataVect
     getindex(pda, i, find(col_inds))
 end
 function Base.getindex(pda::PooledDataArray, i::Real, col_inds::AbstractDataVector)
-    getindex(pda, i, removeNA(col_inds))
+    getindex(pda, i, dropna(col_inds))
 end
 # TODO: Make inds::AbstractVector
 function Base.getindex(pda::PooledDataArray,
@@ -403,7 +403,7 @@ function Base.getindex(pda::PooledDataArray, row_inds::AbstractDataVector{Bool},
     getindex(pda, find(row_inds), j)
 end
 function Base.getindex(pda::PooledDataArray, row_inds::AbstractVector, j::Real)
-    getindex(pda, removeNA(row_inds), j)
+    getindex(pda, dropna(row_inds), j)
 end
 # TODO: Make inds::AbstractVector
 function Base.getindex(pda::PooledDataArray,
@@ -422,7 +422,7 @@ end
 function Base.getindex(pda::PooledDataArray,
              row_inds::AbstractDataVector{Bool},
              col_inds::AbstractDataVector)
-    getindex(pda, find(row_inds), removeNA(col_inds))
+    getindex(pda, find(row_inds), dropna(col_inds))
 end
 # TODO: Make inds::AbstractVector
 function Base.getindex(pda::PooledDataArray,
@@ -433,18 +433,18 @@ end
 function Base.getindex(pda::PooledDataArray,
              row_inds::AbstractDataVector,
              col_inds::AbstractDataVector{Bool})
-    getindex(pda, removeNA(row_inds), find(col_inds))
+    getindex(pda, dropna(row_inds), find(col_inds))
 end
 function Base.getindex(pda::PooledDataArray,
              row_inds::AbstractDataVector,
              col_inds::AbstractDataVector)
-    getindex(pda, removeNA(row_inds), removeNA(col_inds))
+    getindex(pda, dropna(row_inds), dropna(col_inds))
 end
 # TODO: Make inds::AbstractVector
 function Base.getindex(pda::PooledDataArray,
              row_inds::AbstractDataVector,
              col_inds::Union(Vector, BitVector, Ranges))
-    getindex(pda, removeNA(row_inds), col_inds)
+    getindex(pda, dropna(row_inds), col_inds)
 end
 # TODO: Make inds::AbstractVector
 function Base.getindex(pda::PooledDataArray,
@@ -456,7 +456,7 @@ end
 function Base.getindex(pda::PooledDataArray,
              row_inds::Union(Vector, BitVector, Ranges),
              col_inds::AbstractDataVector)
-    getindex(pda, row_inds, removeNA(col_inds))
+    getindex(pda, row_inds, dropna(col_inds))
 end
 # TODO: Make inds::AbstractVector
 function Base.getindex(pda::PooledDataArray,
@@ -849,4 +849,17 @@ function array{T, R}(da::PooledDataArray{T, R}, replacement::T)
         end
     end
     return res
+end
+
+function dropna{T}(pdv::PooledDataVector{T})
+    n = length(pdv)
+    res = Array(T, n)
+    total = 0
+    for i in 1:n
+        if pdv.refs[i] > 0
+            total += 1
+            res[total] = pdv.pool[pdv.refs[i]]
+        end
+    end
+    return res[1:total]
 end

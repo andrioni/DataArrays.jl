@@ -113,26 +113,9 @@ function array{T}(da::DataArray{T}, replacement::T)
     return res
 end
 
-# NB: Can do strange things on DataArray of rank > 1
-function removeNA(da::DataArray)
-    return copy(da.data[!da.na])
-end
+dropna(a::AbstractArray) = a
 
-# TODO: Figure out how to make this work for Array's
-function removeNA{T}(da::AbstractDataVector{T})
-    n = length(da)
-    res = Array(T, n)
-    total = 0
-    for i in 1:n
-        if !isna(da[i])
-            total += 1
-            res[total] = convert(T, da[i])
-        end
-    end
-    return res[1:total]
-end
-
-removeNA(a::AbstractArray) = a
+dropna(dv::DataVector) = copy(dv.data[!dv.na])
 
 # Iterators
 # TODO: Use values()
@@ -154,15 +137,15 @@ function Base.next(itr::EachFailNA, ind::Integer)
     end
 end
 
-type EachRemoveNA{T}
+type Eachdropna{T}
     da::AbstractDataArray{T}
 end
-each_removeNA{T}(da::AbstractDataArray{T}) = EachRemoveNA(da)
-Base.start(itr::EachRemoveNA) = 1
-function Base.done(itr::EachRemoveNA, ind::Integer)
+each_dropna{T}(da::AbstractDataArray{T}) = Eachdropna(da)
+Base.start(itr::Eachdropna) = 1
+function Base.done(itr::Eachdropna, ind::Integer)
     return ind > length(itr.da)
 end
-function Base.next(itr::EachRemoveNA, ind::Integer)
+function Base.next(itr::Eachdropna, ind::Integer)
     while ind <= length(itr.da) && isna(itr.da[ind])
         ind += 1
     end
@@ -218,11 +201,11 @@ function Base.getindex(x::Array,
 end
 function Base.getindex{S, T}(x::Vector{S},
                              inds::AbstractDataArray{T})
-    return x[removeNA(inds)]
+    return x[dropna(inds)]
 end
 function Base.getindex{S, T}(x::Array{S},
                              inds::AbstractDataArray{T})
-    return x[removeNA(inds)]
+    return x[dropna(inds)]
 end
 
 # d[SingleItemIndex]
@@ -243,7 +226,7 @@ function Base.getindex(d::DataArray,
 end
 function Base.getindex(d::DataArray,
                        inds::AbstractDataVector)
-    inds = removeNA(inds)
+    inds = dropna(inds)
     return d[inds]
 end
 
@@ -402,14 +385,8 @@ allna(d::AbstractDataArray) = all(isna, d)
 # Generic iteration over AbstractDataArray's
 
 Base.start(x::AbstractDataArray) = 1
-
-function Base.next(x::AbstractDataArray, state::Integer)
-    return (x[state], state + 1)
-end
-
-function Base.done(x::AbstractDataArray, state::Integer)
-    return state > length(x)
-end
+Base.next(x::AbstractDataArray, state::Integer) = (x[state], state + 1)
+Base.done(x::AbstractDataArray, state::Integer) = state > length(x)
 
 # Promotion rules
 
